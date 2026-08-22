@@ -26,6 +26,11 @@ const sourceRecipe = {
     { name: 'flour', amount: 2, unit: 'cup', isOptional: false, orderIndex: 0 },
     { name: 'milk', amount: 1.5, unit: 'cup', isOptional: false, orderIndex: 1 },
     { name: 'egg', amount: 1, isOptional: false, orderIndex: 2 },
+    // Optional + note ingredients: neither has a schema.org field, so the exporter must NOT
+    // decorate the recipeIngredient line with "(optional)" or "— note" text — doing so would
+    // have the re-import parse the name as "vanilla (optional)" / "butter — melted".
+    { name: 'vanilla', amount: 1, unit: 'tsp', isOptional: true, orderIndex: 3 },
+    { name: 'butter', amount: 2, unit: 'tbsp', isOptional: false, note: 'melted', orderIndex: 4 },
   ],
   steps: [
     { orderIndex: 0, instruction: 'Whisk {flour:100%} and {milk:100%} together.', timeMinutes: 3, isActiveTime: true },
@@ -58,9 +63,15 @@ describe('schema-org export -> JSON-LD import round-trip', () => {
     expect(reimported.title).toBe('Round Trip Pancakes');
     expect(reimported.servings).toBe(4);
 
-    expect(reimported.ingredients.map((i) => i.name)).toEqual(['flour', 'milk', 'egg']);
-    expect(reimported.ingredients.map((i) => i.amount)).toEqual([2, 1.5, 1]);
+    expect(reimported.ingredients.map((i) => i.name)).toEqual(['flour', 'milk', 'egg', 'vanilla', 'butter']);
+    expect(reimported.ingredients.map((i) => i.amount)).toEqual([2, 1.5, 1, 1, 2]);
     expect(reimported.ingredients[0].unit).toBe('cup');
+
+    // The optional flag and the per-ingredient note are lost across the schema.org round-trip
+    // (by design — see export.service.ts's formatIngredientLine doc comment), but critically the
+    // ingredient *names* must come back clean, not "vanilla (optional)" / "butter — melted".
+    expect(reimported.ingredients.find((i) => i.name === 'vanilla')?.name).toBe('vanilla');
+    expect(reimported.ingredients.find((i) => i.name === 'butter')?.name).toBe('butter');
 
     // Instructions come back as plain text with {ref} tokens already resolved by the exporter,
     // so the re-imported steps carry the resolved wording rather than the original tokens.

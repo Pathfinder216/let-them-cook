@@ -39,12 +39,16 @@ interface ExportIngredient {
   note: string | null;
 }
 
-/** "2 cups flour" / "flour" style line for an ingredient. */
+/**
+ * "2 cups flour" style line for an ingredient — amount/unit/name only. schema.org's
+ * `recipeIngredient` has no field for "optional" or a per-ingredient note, so those are
+ * deliberately NOT appended here (unlike the frontend's decorated text formatter): doing so
+ * would corrupt a re-import, which would parse "flour (optional)" as the ingredient's name.
+ * Both are preserved losslessly in the `full` export instead.
+ */
 function formatIngredientLine(ing: ExportIngredient): string {
   const amt = ing.amount !== null ? formatAmount(ing.amount) : '';
-  const optional = ing.isOptional ? ' (optional)' : '';
-  const note = ing.note ? ` — ${ing.note}` : '';
-  return [amt, ing.unit, ing.name].filter(Boolean).join(' ') + optional + note;
+  return [amt, ing.unit, ing.name].filter(Boolean).join(' ');
 }
 
 const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
@@ -112,10 +116,23 @@ export interface SchemaOrgRecipe {
   recipeInstructions: { '@type': 'HowToStep'; text: string }[];
   recipeCategory?: string[];
   keywords?: string;
-  author?: { '@type': 'Person' | 'Organization'; name: string };
   url?: string;
   description?: string;
   creativeWorkStatus: 'Active' | 'Archived';
+}
+
+/** `Recipe.source` is free text (a URL OR a plain description like "Grandma's binder") — only
+ *  emit it as schema.org `url` when it actually parses as an http(s) URL. The raw value survives
+ *  either way in the `full` export. There is no author field anywhere in the data model, so
+ *  schema.org `author` is omitted entirely rather than guessed from `source`. */
+function sourceAsUrl(source: string | null): string | undefined {
+  if (!source) return undefined;
+  try {
+    const parsed = new URL(source);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? source : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function totalMinutes(steps: { timeMinutes: number | null }[]): number | null {
@@ -151,8 +168,7 @@ export async function exportSchemaOrg(userId: string): Promise<SchemaOrgRecipe[]
       })),
       recipeCategory: recipe.courses.length ? recipe.courses.map((c) => c.courseType) : undefined,
       keywords: recipe.labels.length ? recipe.labels.map((rl) => rl.label.name).join(', ') : undefined,
-      author: recipe.source ? { '@type': 'Organization' as const, name: recipe.source } : undefined,
-      url: recipe.source ?? undefined,
+      url: sourceAsUrl(recipe.source),
       description: recipe.authorNotes ?? undefined,
       creativeWorkStatus: recipe.archived ? ('Archived' as const) : ('Active' as const),
     };

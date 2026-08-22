@@ -56,10 +56,12 @@ describe('GET /api/export', () => {
       expect(recipe.name).toBe('Scrambled Eggs');
       expect(recipe.recipeYield).toBe('2');
       expect(recipe.creativeWorkStatus).toBe('Active');
+      // recipeIngredient is amount/unit/name only — no "(optional)" or note decoration, since
+      // schema.org has no field for either and decorating would corrupt a re-import.
       expect(recipe.recipeIngredient).toEqual([
-        '4 large eggs — free-range',
+        '4 large eggs',
         '1 tbsp butter',
-        '¼ tsp salt (optional)',
+        '¼ tsp salt',
       ]);
       expect(recipe.recipeInstructions).toEqual([
         { '@type': 'HowToStep', text: 'Crack 4 large eggs into a bowl and whisk.' },
@@ -69,8 +71,16 @@ describe('GET /api/export', () => {
       // totalTime sums all step minutes; prepTime (mapped from active-time minutes here) only active ones
       expect(recipe.totalTime).toBe('PT10M');
       expect(recipe.prepTime).toBe('PT7M');
-      expect(recipe.author).toEqual({ '@type': 'Organization', name: 'https://example.com/scrambled-eggs' });
+      expect(recipe.author).toBeUndefined();
       expect(recipe.url).toBe('https://example.com/scrambled-eggs');
+    });
+
+    it('omits url when source is not a parseable http(s) URL', async () => {
+      await api.post('/api/recipes').send({ title: 'Family Recipe', source: "Grandma's binder" });
+      const res = await api.get('/api/export?format=schema-org');
+      const recipe = res.body.find((r: { name: string }) => r.name === 'Family Recipe');
+      expect(recipe.url).toBeUndefined();
+      expect(recipe.author).toBeUndefined();
     });
 
     it('flags archived recipes via creativeWorkStatus and includes only latest versions', async () => {
