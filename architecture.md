@@ -121,7 +121,8 @@ see real client IPs).
 routes/  (HTTP: parsing, status codes)  →  services/  (business logic, takes userId first)  →  Prisma
 ```
 - `services/`: auth, recipe, meal-plan, grocery (list consolidation), import (parsing),
-  dietary (allergen/diet computation), substitutions
+  dietary (allergen/diet computation), substitutions, export (bulk schema.org + proprietary
+  full-backup JSON, `GET /api/export?format=schema-org|full`)
 - Routes stay thin; all ownership scoping lives in services (`userId` is always the first
   argument), backed by isolation tests.
 
