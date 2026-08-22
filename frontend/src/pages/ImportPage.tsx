@@ -7,6 +7,26 @@ import { formatDuration } from '../utils/formatDuration';
 type ImportMode = 'url' | 'file';
 type ImportStatus = 'idle' | 'loading' | 'preview' | 'error';
 
+// The parser always fills these fields with a default rather than leaving them empty (servings
+// defaults to 4, for instance), so a successful-looking import can still be silently wrong.
+// Flag the defaults/gaps the parser is known to fall back on so the user reviews before saving.
+function missingFieldWarnings(preview: ParsedRecipe): string[] {
+  const warnings: string[] = [];
+  if (preview.servings === 4) {
+    warnings.push('No servings detected — defaulting to 4. Double-check before saving.');
+  }
+  if (preview.totalTime === null) {
+    warnings.push('No total time detected.');
+  }
+  if (preview.ingredients.length === 0) {
+    warnings.push('No ingredients detected.');
+  }
+  if (preview.steps.length === 0) {
+    warnings.push('No steps detected.');
+  }
+  return warnings;
+}
+
 export function ImportPage() {
   const navigate = useNavigate();
   const createRecipe = useCreateRecipe();
@@ -179,6 +199,14 @@ export function ImportPage() {
             {preview.totalTime && <span>{formatDuration(preview.totalTime)} total</span>}
             {preview.source && <span className="truncate">Source: {preview.source}</span>}
           </div>
+
+          {missingFieldWarnings(preview).length > 0 && (
+            <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4 space-y-0.5">
+              {missingFieldWarnings(preview).map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          )}
 
           {preview.authorNotes && (
             <p className="text-sm text-gray-600 mb-4 italic">{preview.authorNotes.slice(0, 300)}{preview.authorNotes.length > 300 ? '…' : ''}</p>

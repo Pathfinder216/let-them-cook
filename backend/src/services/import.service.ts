@@ -52,8 +52,11 @@ interface SchemaRecipe {
 
 function parseDuration(iso: string | undefined): number | null {
   if (!iso) return null;
-  // ISO 8601 duration: PT1H30M, PT45M, P0DT1H
-  const match = iso.match(/(?:(\d+)H)?(?:(\d+)M)?/);
+  // ISO 8601 duration: PT1H30M, PT45M, P0DT1H30M. The previous regex had no anchor to the "T"
+  // time designator, so it matched an empty string at index 0 on every input and always
+  // returned null — durations from JSON-LD were silently dropped. Anchor on the literal "T"
+  // that starts the time portion instead.
+  const match = iso.match(/T(?:(\d+)H)?(?:(\d+)M)?/);
   if (!match) return null;
   const hours = parseInt(match[1] ?? '0', 10);
   const mins = parseInt(match[2] ?? '0', 10);
@@ -95,34 +98,91 @@ function extractJsonLd(html: string): SchemaRecipe | null {
   return null;
 }
 
+// Decode the handful of HTML entities that show up in JSON-LD string values on real recipe
+// sites (WordPress recipe plugins often emit raw entities inside JSON string literals, which
+// JSON.parse leaves untouched since they're not JSON escapes).
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&frac12;/g, '½')
+    .replace(/&frac13;/g, '⅓')
+    .replace(/&frac23;/g, '⅔')
+    .replace(/&frac14;/g, '¼')
+    .replace(/&frac34;/g, '¾')
+    .replace(/&frac18;/g, '⅛')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)));
+}
+
 function parseInstructionText(raw: unknown): string {
-  if (typeof raw === 'string') return raw.trim();
+  if (typeof raw === 'string') return decodeEntities(raw.trim());
   if (typeof raw === 'object' && raw !== null) {
     const obj = raw as Record<string, unknown>;
-    if (typeof obj['text'] === 'string') return obj['text'].trim();
-    if (typeof obj['name'] === 'string') return obj['name'].trim();
+    if (typeof obj['text'] === 'string') return decodeEntities(obj['text'].trim());
+    if (typeof obj['name'] === 'string') return decodeEntities(obj['name'].trim());
   }
   return '';
 }
 
+function isHowToSection(item: unknown): item is { '@type'?: string; name?: string; itemListElement?: unknown[] } {
+  if (typeof item !== 'object' || item === null) return false;
+  const type = (item as Record<string, unknown>)['@type'];
+  return type === 'HowToSection';
+}
+
+/**
+ * Flatten `recipeInstructions` into an ordered step list. Handles plain strings, HowToStep
+ * objects, and HowToSection groups (sections → their nested steps, in order, prefixed with the
+ * section name so the grouping isn't silently lost).
+ */
+function flattenInstructions(instructions: unknown[]): string[] {
+  const out: string[] = [];
+  for (const instr of instructions) {
+    if (isHowToSection(instr)) {
+      const sectionName = typeof instr.name === 'string' ? decodeEntities(instr.name.trim()) : '';
+      const items = Array.isArray(instr.itemListElement) ? instr.itemListElement : [];
+      for (const item of items) {
+        const text = parseInstructionText(item);
+        if (text) out.push(sectionName ? `${sectionName}: ${text}` : text);
+      }
+    } else {
+      const text = parseInstructionText(instr);
+      if (text) out.push(text);
+    }
+  }
+  return out;
+}
+
 function schemaToRecipe(schema: SchemaRecipe, url: string): ParsedRecipe {
   const instructions = schema.recipeInstructions ?? [];
-  const steps: ParsedStep[] = [];
+  let stepTexts: string[];
 
   if (Array.isArray(instructions)) {
-    instructions.forEach((instr, i) => {
-      const text = parseInstructionText(instr);
-      if (text) steps.push({ orderIndex: i, instruction: text, timeMinutes: null, isActiveTime: true });
-    });
+    stepTexts = flattenInstructions(instructions);
   } else if (typeof instructions === 'string') {
-    instructions.split(/\n+/).forEach((line, i) => {
-      const text = line.trim();
-      if (text) steps.push({ orderIndex: i, instruction: text, timeMinutes: null, isActiveTime: true });
-    });
+    stepTexts = decodeEntities(instructions)
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  } else {
+    stepTexts = [];
   }
 
+  const steps: ParsedStep[] = stepTexts.map((instruction, i) => ({
+    orderIndex: i,
+    instruction,
+    timeMinutes: null,
+    isActiveTime: true,
+  }));
+
   const ingredients = (schema.recipeIngredient ?? []).map((raw, i) =>
-    parseIngredientLine(raw, i),
+    parseIngredientLine(decodeEntities(raw), i),
   );
 
   const totalTime = parseDuration(schema.totalTime) ??
@@ -130,12 +190,12 @@ function schemaToRecipe(schema: SchemaRecipe, url: string): ParsedRecipe {
   const prepTime = parseDuration(schema.prepTime);
 
   return {
-    title: schema.name ?? 'Untitled Recipe',
+    title: schema.name ? decodeEntities(schema.name) : 'Untitled Recipe',
     servings: parseServings(schema.recipeYield),
     totalTime,
     activeTime: prepTime,
     source: url,
-    authorNotes: schema.description?.slice(0, 2000) ?? null,
+    authorNotes: schema.description ? decodeEntities(schema.description).slice(0, 2000) : null,
     ingredients,
     steps,
   };
