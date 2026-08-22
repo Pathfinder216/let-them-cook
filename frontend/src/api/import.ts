@@ -22,6 +22,9 @@ export type ParsedRecipe = Omit<CreateRecipeInput, 'ingredients' | 'steps'> & {
     timeMinutes: number | null;
     isActiveTime: boolean;
   }[];
+  // Populated by the backend parser only — it's the only place that knows whether e.g.
+  // `servings: 4` was actually parsed or is the no-match fallback default.
+  warnings: string[];
 };
 
 export async function importFromUrl(url: string): Promise<ParsedRecipe> {

@@ -180,6 +180,14 @@ export function ImportPage() {
             {preview.source && <span className="truncate">Source: {preview.source}</span>}
           </div>
 
+          {preview.warnings.length > 0 && (
+            <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4 space-y-0.5">
+              {preview.warnings.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          )}
+
           {preview.authorNotes && (
             <p className="text-sm text-gray-600 mb-4 italic">{preview.authorNotes.slice(0, 300)}{preview.authorNotes.length > 300 ? '…' : ''}</p>
           )}
