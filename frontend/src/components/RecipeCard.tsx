@@ -1,20 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { Recipe } from '../types/recipe';
+import { fetchRecipeCover } from '../api/media';
 import { formatDuration } from '../utils/formatDuration';
-
-interface MediaItem {
-  id: string;
-  type: string;
-  path: string;
-}
-
-async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/recipes/${recipeId}/media`);
-  if (!res.ok) return null;
-  const items: MediaItem[] = await res.json();
-  return items.find((m) => m.type === 'image') ?? null;
-}
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -23,7 +11,7 @@ interface RecipeCardProps {
 export function RecipeCard({ recipe }: RecipeCardProps) {
   const { data: cover = null } = useQuery({
     queryKey: ['cover-photo', recipe.id],
-    queryFn: () => fetchCoverPhoto(recipe.id),
+    queryFn: () => fetchRecipeCover(recipe.id),
     staleTime: 60_000,
   });
 
