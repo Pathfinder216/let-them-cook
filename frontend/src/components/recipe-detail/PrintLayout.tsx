@@ -44,6 +44,7 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
             )}
             {swapDisplayNames.get(ing.id) ?? ing.name}
             {ing.isOptional && <span className="text-gray-400"> (optional)</span>}
+            {ing.note && <span className="text-gray-500 italic"> — {ing.note}</span>}
           </li>
         ))}
       </ul>
@@ -64,15 +65,15 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
       </ol>
 
       {recipe.authorNotes && (
-        <div className="mb-3">
+        <div className="mb-3 break-inside-avoid">
           <h3 className="text-sm font-semibold mb-0.5">Author Notes</h3>
-          <p className="text-sm">{recipe.authorNotes}</p>
+          <p className="text-sm whitespace-pre-line">{recipe.authorNotes}</p>
         </div>
       )}
       {recipe.personalNotes && (
-        <div className="mb-3">
+        <div className="mb-3 break-inside-avoid">
           <h3 className="text-sm font-semibold mb-0.5">Personal Notes</h3>
-          <p className="text-sm">{recipe.personalNotes}</p>
+          <p className="text-sm whitespace-pre-line">{recipe.personalNotes}</p>
         </div>
       )}
     </div>

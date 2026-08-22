@@ -39,3 +39,14 @@ Spec §6: share a recipe as raw text via email and as PDF. Today there's `.txt`/
 ## Acceptance
 From a recipe: native share sheet on mobile, prefilled email on desktop, print dialog produces
 a clean PDF; spec §8 sharing row updated (links remain plan 30).
+
+## Follow-up — issue #34 (recipe notes missing from print / Save as PDF)
+`PrintLayout` always emitted the Author/Personal Notes blocks, but `html, body { overflow-x:
+hidden; max-width: 100vw }` (added for the mobile screen layout) carries into paged media and
+makes browsers clip everything past the first printed page — the notes sit last, so they were
+the first thing to vanish. Fixed in `frontend/src/index.css` by resetting `overflow`,
+`max-width` and `height` on `html, body` inside `@media print`, and notes blocks now carry
+`break-inside-avoid` so a note is not split across pages. The same pass picked up the
+per-ingredient `note` (plan 23's deferred "export/print pickup") in the printed ingredient
+list. Headings still render only when the note exists — no empty sections.
+Covered by `frontend/src/components/recipe-detail/PrintLayout.test.tsx`.
