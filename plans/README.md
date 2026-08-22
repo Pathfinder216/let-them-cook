@@ -52,7 +52,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [22 — Implement LocalizationMapping](22-localization-mappings.md) (M)
 - [x] [23 — Per-ingredient notes](23-ingredient-notes.md) (M) — `Ingredient.note String?` (Zod `max(200)`); the version copy-paths in `recipe.service.ts` needed **no code change** — update/restore copy via rest-spreads (`({id, recipeId, ...ing}) => ing`) so `note` flows through, pinned by new create/edit/restore regression tests + 200-char boundary tests. Form: secondary note input per ingredient row in `IngredientsEditor` (omitted from the payload when empty); display as muted `— note` text in `RecipeIngredientList` and cook-mode `IngredientChecklist`. Grocery consolidation and import untouched per plan; export/print pickup deferred to the plan-29 `recipeToText` formatter as a follow-up
 - [ ] [24 — Remaining-percent ingredient refs](24-remaining-percent-refs.md) (M)
-- [ ] [25 — Equipment & make-ahead labels](25-equipment-makeahead-labels.md) (S-M)
+- [~] [25 — Equipment & make-ahead labels](25-equipment-makeahead-labels.md) (S-M) — **abandoned, not planned**: user-created manual labels already cover this; nothing depends on it (38 says so explicitly)
 - [ ] [26 — Image crop + natural aspect display](26-image-crop-aspect.md) (M; needs 05)
 - [ ] [27 — Unit conversion (imperial↔metric, temperatures)](27-unit-conversion.md) (M-L; needs 18)
 - [ ] [28 — Grocery aisle grouping](28-grocery-aisles.md) (M)

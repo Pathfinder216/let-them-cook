@@ -1,5 +1,13 @@
 # 25 — Equipment & make-ahead labeling
 
+> **🚫 Abandoned — not planned.** Users can already create their own manual labels for
+> equipment and make-ahead handling, so seeding a fixed global vocabulary adds maintenance
+> (and picker clutter) for little gain. Nothing depends on this plan: plan 38 (cooking
+> timeline) states explicitly that these labels are **not** a dependency, and no other plan
+> references it. The rest of this file is kept as-is for the record — including the standing
+> design decision not to reintroduce `equipment`/`makeAhead` `Label.type` values — in case it
+> is ever revived.
+
 **Size:** S-M | **Depends on:** nothing
 
 ## Goal
