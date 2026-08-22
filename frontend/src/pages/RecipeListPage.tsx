@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useRecipes } from '../hooks/useRecipes';
 import { RecipeCard } from '../components/RecipeCard';
 import { FilterPanel } from '../components/FilterPanel';
+import { Menu, MenuItemButton } from '../components/ui/Menu';
+import { downloadExport } from '../api/export';
 
 export function RecipeListPage() {
   const [search, setSearch] = useState('');
@@ -25,18 +27,44 @@ export function RecipeListPage() {
   });
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExport(format: 'schema-org' | 'full') {
+    setExportError(null);
+    try {
+      await downloadExport(format);
+    } catch {
+      setExportError('Export failed. Please try again.');
+    }
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-2">
         <h1 className="text-2xl font-bold text-gray-900">My Recipes</h1>
-        <Link
-          to="/recipes/new"
-          className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-        >
-          + New Recipe
-        </Link>
+        <div className="flex items-center gap-2">
+          <Menu
+            label="Export"
+            buttonAriaLabel="Export all recipes"
+            buttonClassName="border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            <MenuItemButton onClick={() => handleExport('schema-org')}>
+              Export as schema.org (standard)
+            </MenuItemButton>
+            <MenuItemButton onClick={() => handleExport('full')}>
+              Export everything (full backup)
+            </MenuItemButton>
+          </Menu>
+          <Link
+            to="/recipes/new"
+            className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+          >
+            + New Recipe
+          </Link>
+        </div>
       </div>
+
+      {exportError && <p className="text-red-600 text-sm mb-2">{exportError}</p>}
 
       {/* Search */}
       <div className="mb-2">
