@@ -41,7 +41,8 @@ export function RecipeActionsBar({ recipe, targetServings, activeSwaps }: Recipe
 
   return (
     <>
-      <div className="flex gap-2">
+      {/* wraps so the wider "Photos hidden" state can't push the other actions off a narrow screen */}
+      <div className="flex flex-wrap gap-2 justify-end">
         <MediaVisibilityToggle />
         {recipe.steps.length > 0 && (
           <Link
