@@ -40,4 +40,13 @@ describe('rate limiting', () => {
     expect(last!.status).toBe(429);
     expect(last!.body).toEqual({ error: expect.any(String) });
   });
+
+  it('blocks public share-link requests after 100 within the window', async () => {
+    let last;
+    for (let i = 0; i < 101; i++) {
+      last = await request(app).get('/api/shared/00000000-0000-4000-8000-000000000000');
+    }
+    expect(last!.status).toBe(429);
+    expect(last!.body).toEqual({ error: expect.any(String) });
+  });
 });

@@ -2,10 +2,14 @@ import { Router, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { config } from '../config.js';
 import * as shareService from '../services/share.service.js';
+import { sharedLimiter } from '../middleware/rateLimits.js';
 
 // Public, token-gated read-only access to a shared recipe. Mounted in app.ts BEFORE the CSRF +
 // requireAuth gates — the unguessable token is the only credential. No user session is involved.
 const router = Router();
+
+// Per-IP limiter on the whole public surface (see rateLimits.ts).
+router.use(sharedLimiter);
 
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
   return (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);

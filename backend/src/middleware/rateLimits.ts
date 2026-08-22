@@ -53,3 +53,15 @@ export const importLimiter = rateLimit({
   max: 20,
   message: 'Too many import requests. Please try again later.',
 });
+
+/**
+ * Public share links: 100 / 15 min per IP. The uuid-v4 token is unguessable, so this is
+ * defense-in-depth rather than anti-enumeration — it caps abuse of the one unauthenticated,
+ * DB-and-disk-touching surface. Sized to leave room for a recipe page plus its media files.
+ */
+export const sharedLimiter = rateLimit({
+  ...shared,
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests. Please try again later.',
+});
