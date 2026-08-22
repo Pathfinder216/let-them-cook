@@ -79,7 +79,11 @@ export function NotesAndTaxonomyFields({
 
   const { data: allCourses = [] } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: allLabels = [] } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
-  const manualLabels = allLabels.filter((l) => l.type !== 'dietary' && l.type !== 'allergen');
+  // Alphabetize — the standard label set has grown large enough (equipment + make-ahead
+  // vocabulary, plan 25) that insertion order no longer reads as manageable.
+  const manualLabels = allLabels
+    .filter((l) => l.type !== 'dietary' && l.type !== 'allergen')
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   async function handleCreateLabel() {
     const name = newLabelName.trim();

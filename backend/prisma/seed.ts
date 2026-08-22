@@ -35,11 +35,25 @@ const ALIAS_GROUPS: string[][] = [
   ['whole wheat flour', 'wholemeal flour'],
 ];
 
+// plan 37 references these exact name strings for make-ahead/storage detection — do not
+// rename without checking there. Equipment/make-ahead labels are deliberately just `manual`
+// labels (see the migration below) — do NOT reintroduce dedicated label types.
 const STANDARD_LABELS: { type: string; name: string }[] = [
   { type: 'manual', name: 'Make-ahead' },
   { type: 'manual', name: 'Freezable' },
   { type: 'manual', name: 'Quick' },
   { type: 'manual', name: 'Budget-friendly' },
+  { type: 'manual', name: 'Refrigerate up to 3 days' },
+  { type: 'manual', name: 'Night-before prep' },
+  { type: 'manual', name: 'Slow cooker' },
+  { type: 'manual', name: 'Instant Pot / pressure cooker' },
+  { type: 'manual', name: 'Air fryer' },
+  { type: 'manual', name: 'Oven' },
+  { type: 'manual', name: 'Stovetop only' },
+  { type: 'manual', name: 'No-cook' },
+  { type: 'manual', name: 'Grill' },
+  { type: 'manual', name: 'Blender / food processor' },
+  { type: 'manual', name: 'Stand mixer' },
 ];
 
 async function main() {
