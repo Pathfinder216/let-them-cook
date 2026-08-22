@@ -1,31 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createApp } from '../app.js';
 import { prisma } from '../db.js';
+import { STANDARD_LABELS } from '../constants/standardLabels.js';
 import { createAuthedApi, cleanupUsers, type AuthedApi } from './helpers/auth.js';
 
 const app = createApp();
 let api: AuthedApi;
-
-// Mirrors STANDARD_LABELS in prisma/seed.ts (plan 25: equipment + make-ahead vocabulary,
-// implemented as `manual` labels — no dedicated label types). Kept in sync with the seed so
-// this suite exercises exactly the rows a fresh DB seed produces.
-const STANDARD_LABELS: { type: string; name: string }[] = [
-  { type: 'manual', name: 'Make-ahead' },
-  { type: 'manual', name: 'Freezable' },
-  { type: 'manual', name: 'Quick' },
-  { type: 'manual', name: 'Budget-friendly' },
-  { type: 'manual', name: 'Refrigerate up to 3 days' },
-  { type: 'manual', name: 'Night-before prep' },
-  { type: 'manual', name: 'Slow cooker' },
-  { type: 'manual', name: 'Instant Pot / pressure cooker' },
-  { type: 'manual', name: 'Air fryer' },
-  { type: 'manual', name: 'Oven' },
-  { type: 'manual', name: 'Stovetop only' },
-  { type: 'manual', name: 'No-cook' },
-  { type: 'manual', name: 'Grill' },
-  { type: 'manual', name: 'Blender / food processor' },
-  { type: 'manual', name: 'Stand mixer' },
-];
 
 async function seedStandardLabels(): Promise<number> {
   let created = 0;

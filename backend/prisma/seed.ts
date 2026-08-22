@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { INGREDIENT_CATALOG } from '../src/constants/ingredientCatalog.js';
 import { SUBSTITUTION_SEED } from '../src/constants/substitutionSeed.js';
+import { STANDARD_LABELS } from '../src/constants/standardLabels.js';
 import { stemVariants } from '../src/utils/stemVariants.js';
 
 const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL! });
@@ -35,26 +36,6 @@ const ALIAS_GROUPS: string[][] = [
   ['whole wheat flour', 'wholemeal flour'],
 ];
 
-// plan 37 references these exact name strings for make-ahead/storage detection — do not
-// rename without checking there. Equipment/make-ahead labels are deliberately just `manual`
-// labels (see the migration below) — do NOT reintroduce dedicated label types.
-const STANDARD_LABELS: { type: string; name: string }[] = [
-  { type: 'manual', name: 'Make-ahead' },
-  { type: 'manual', name: 'Freezable' },
-  { type: 'manual', name: 'Quick' },
-  { type: 'manual', name: 'Budget-friendly' },
-  { type: 'manual', name: 'Refrigerate up to 3 days' },
-  { type: 'manual', name: 'Night-before prep' },
-  { type: 'manual', name: 'Slow cooker' },
-  { type: 'manual', name: 'Instant Pot / pressure cooker' },
-  { type: 'manual', name: 'Air fryer' },
-  { type: 'manual', name: 'Oven' },
-  { type: 'manual', name: 'Stovetop only' },
-  { type: 'manual', name: 'No-cook' },
-  { type: 'manual', name: 'Grill' },
-  { type: 'manual', name: 'Blender / food processor' },
-  { type: 'manual', name: 'Stand mixer' },
-];
 
 async function main() {
   console.log('Seeding ingredient catalog…');
