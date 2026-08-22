@@ -157,7 +157,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 ### Accounts & Security
 *(Added during development — originally a stretch goal, implemented early.)*
 - Multi-user with self-service signup (optionally gated by an invite code); cookie-based sessions, CSRF protection
-- Per-IP rate limiting on auth + import endpoints (brute-force / abuse protection)
+- Per-IP rate limiting on auth, import, and public share-link endpoints (brute-force / abuse protection)
 - SSRF protection on import-from-URL: user-supplied URLs are validated and resolved against an allowlist of public addresses before fetching (blocks internal/cloud-metadata probing)
 - Per-user data isolation: recipes and meal plans are private to their owner
 - Shared global data (ingredient catalog, official substitutions, seeded labels) with per-user private additions layered on top

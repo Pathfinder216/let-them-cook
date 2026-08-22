@@ -215,7 +215,7 @@ The app is multi-tenant: every user has their own private data, behind a login. 
 - `GET /csrf` — issues a CSRF token
 
 ### Rate limiting
-Per-IP limits via `express-rate-limit` (`src/middleware/rateLimits.ts`), keyed off `trust proxy` so they see real client IPs behind nginx. Disabled when `NODE_ENV=test`. Login 10/15 min, register 5/hour, the rest of `/api/auth` 60/15 min, and import (`/api/import/url`, `/file`) 20/hour. Over-limit responses are `429` with the app's `{ error }` shape and `RateLimit-*` headers.
+Per-IP limits via `express-rate-limit` (`src/middleware/rateLimits.ts`), keyed off `trust proxy` so they see real client IPs behind nginx. Disabled when `NODE_ENV=test`. Login 10/15 min, register 5/hour, the rest of `/api/auth` 60/15 min, import (`/api/import/url`, `/file`) 20/hour, and the public share routes (`/api/shared/*`) 100/15 min — sized for a recipe page plus its media files. Over-limit responses are `429` with the app's `{ error }` shape and `RateLimit-*` headers.
 
 All other `/api` routes sit behind `requireAuth` (and CSRF for mutations); `/media` is also gated. The auth routes are mounted before those gates.
 
@@ -409,7 +409,7 @@ move to Postgres if the host's volume story is weak.
   `/app/data` is node-owned in the image so the named volume inherits it on first use
 - **HTTPS in production**: TLS terminated by host nginx (Let's Encrypt/certbot) in front of the
   loopback-bound container; `COOKIE_SECURE=true`; Express `trust proxy = 1`
-- **Rate limiting** on auth + import endpoints (`express-rate-limit`, per-IP)
+- **Rate limiting** on auth, import, and public share endpoints (`express-rate-limit`, per-IP)
 - **Gated signup** via `SIGNUP_INVITE_CODE` (optional invite code on register)
 - **SSRF protection on URL import**: user-supplied import URLs go through `src/utils/safeFetch.ts`
   — http(s)-only, no embedded credentials, hostname + DNS-resolution checks against private/
