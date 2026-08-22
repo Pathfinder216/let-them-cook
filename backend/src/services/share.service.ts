@@ -9,7 +9,10 @@ const sharedInclude = {
   ingredients: { orderBy: { orderIndex: 'asc' as const } },
   steps: {
     orderBy: { orderIndex: 'asc' as const },
-    include: { media: true },
+    // A step holds at most one media item (POST /steps/:id/media replaces any existing row, and
+    // version copies preserve that), but order + take explicitly so `step.media[0]` below is
+    // deterministic even if a stray second row ever appears.
+    include: { media: { orderBy: { orderIndex: 'asc' as const }, take: 1 } },
   },
   labels: { include: { label: true } },
   courses: true,
