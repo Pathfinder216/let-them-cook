@@ -1,3 +1,5 @@
+import { normalizeUnit } from '../constants/units.js';
+
 interface IngredientEntry {
   name: string;
   amount: number | null;
@@ -17,7 +19,10 @@ export function consolidateIngredients(
 
   for (const recipe of recipes) {
     for (const ing of recipe.ingredients) {
-      const key = `${ing.name.toLowerCase()}|${(ing.unit || '').toLowerCase()}`;
+      // Defensive: new writes are already canonical, but pre-migration rows may still hold
+      // spelling variants — normalize so `tbsp` + `tablespoon` collapse onto one line.
+      const canonicalUnit = normalizeUnit(ing.unit);
+      const key = `${ing.name.toLowerCase()}|${canonicalUnit ?? ''}`;
       const existing = consolidated.get(key);
 
       const scaledAmount = ing.amount !== null ? ing.amount * recipe.servingsMultiplier : null;
@@ -31,7 +36,7 @@ export function consolidateIngredients(
       } else {
         consolidated.set(key, {
           amount: scaledAmount,
-          unit: ing.unit || null,
+          unit: canonicalUnit,
         });
       }
     }

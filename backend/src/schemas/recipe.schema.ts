@@ -1,10 +1,13 @@
 import { z } from 'zod';
+import { normalizeUnit } from '../constants/units.js';
 
 const ingredientSchema = z.object({
   name: z.string().min(1),
   originalName: z.string().optional(),
   amount: z.number().positive().optional(),
-  unit: z.string().optional(),
+  // Normalize to a canonical abbreviation at write time so stored units are consistent app-wide.
+  // Covers every create/update path that runs through validation. Blank/absent → null.
+  unit: z.string().optional().transform((u) => normalizeUnit(u)),
   isOptional: z.boolean().default(false),
   note: z.string().max(200).optional(),
   orderIndex: z.number().int().min(0),
