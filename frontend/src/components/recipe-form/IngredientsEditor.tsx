@@ -42,6 +42,29 @@ export function IngredientsEditor({
   const ingBeforePositions = useRef<Map<string, number>>(new Map());
   const ingPendingFlip = useRef(false);
 
+  // ── Focus the new row's amount field after "+ Add Ingredient" ────────────────
+  // amountEls holds each row's amount <input>; focusAmountPending is set when the
+  // button is clicked and consumed in a layout effect once React has rendered the
+  // new row, so the user can type the amount straight away.
+  const amountEls = useRef<Map<string, HTMLInputElement>>(new Map());
+  const focusAmountPending = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!focusAmountPending.current) return;
+    focusAmountPending.current = false;
+    const last = ingredients[ingredients.length - 1];
+    if (!last) return;
+    const input = amountEls.current.get(last.internalId);
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [ingredients]);
+
+  function handleAddIngredient() {
+    focusAmountPending.current = true;
+    addIngredient();
+  }
+
   // ── Ingredient drag: document-level pointer listeners ────────────────────────
   // Using document listeners (not setPointerCapture) because pointer capture is lost
   // when React moves the captured DOM node during a live reorder.
@@ -143,6 +166,7 @@ export function IngredientsEditor({
 
               <NumberField
                 mode="fraction"
+                ref={(el) => { if (el) amountEls.current.set(ing.internalId, el); else amountEls.current.delete(ing.internalId); }}
                 value={ing.amountText}
                 onChange={(v) => updateIngredient(index, 'amountText', v)}
                 placeholder="Amt"
@@ -207,7 +231,7 @@ export function IngredientsEditor({
           </div>
         ))}
       </div>
-      <button type="button" onClick={addIngredient} className="mt-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
+      <button type="button" onClick={handleAddIngredient} className="mt-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
         + Add Ingredient
       </button>
     </div>

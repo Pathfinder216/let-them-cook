@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, Ref } from 'react';
 
 export type NumberFieldMode = 'integer' | 'decimal' | 'fraction';
 
@@ -18,6 +18,8 @@ interface NumberFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
    *   keystrokes are restricted to digits, spaces, `.` and `/`.
    */
   mode?: NumberFieldMode;
+  /** Forwarded to the underlying `<input>` (e.g. to focus it programmatically). */
+  ref?: Ref<HTMLInputElement>;
 }
 
 /** Characters allowed in a `fraction`-mode field: digits, slash, dot, space. */

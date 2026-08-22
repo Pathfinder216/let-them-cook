@@ -59,6 +59,22 @@ describe('RecipeForm', () => {
     expect(screen.queryByPlaceholderText('Ingredient name')).not.toBeInTheDocument();
   });
 
+  it('focuses the new amount field after clicking Add Ingredient', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByText('+ Add Ingredient'));
+    expect(screen.getByPlaceholderText('Amt')).toHaveFocus();
+
+    // Typing straight away lands in the amount field, and a second add moves focus on.
+    await user.keyboard('2');
+    await user.click(screen.getByText('+ Add Ingredient'));
+    const amounts = screen.getAllByPlaceholderText('Amt');
+    expect(amounts).toHaveLength(2);
+    expect(amounts[0]).toHaveValue('2');
+    expect(amounts[1]).toHaveFocus();
+  });
+
   it('adds and removes steps', async () => {
     const user = userEvent.setup();
     renderForm();
