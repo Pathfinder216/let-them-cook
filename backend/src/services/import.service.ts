@@ -30,6 +30,14 @@ export interface ParsedRecipe {
   authorNotes: string | null;
   ingredients: ParsedIngredient[];
   steps: ParsedStep[];
+  /**
+   * Human-readable notes about fields the parser could not find and had to fall back on (e.g.
+   * "No servings detected — defaulting to 4."). Only the parser knows whether a value like
+   * `servings: 4` is a genuinely-parsed 4 or the fallback default, so this MUST be populated at
+   * the source (here) rather than re-derived from the output shape downstream (the frontend
+   * import preview renders this list as-is).
+   */
+  warnings: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -64,11 +72,14 @@ function parseDuration(iso: string | undefined): number | null {
   return total > 0 ? total : null;
 }
 
-function parseServings(raw: string | number | string[] | undefined): number {
-  if (raw === undefined || raw === null) return 4;
+const SERVINGS_FALLBACK_WARNING = 'No servings detected — defaulting to 4.';
+
+/** Returns the parsed servings plus whether it's a genuine parse or the no-match fallback. */
+function parseServings(raw: string | number | string[] | undefined): { servings: number; usedFallback: boolean } {
+  if (raw === undefined || raw === null) return { servings: 4, usedFallback: true };
   const str = Array.isArray(raw) ? raw[0] : String(raw);
   const match = str.match(/\d+/);
-  return match ? parseInt(match[0], 10) : 4;
+  return match ? { servings: parseInt(match[0], 10), usedFallback: false } : { servings: 4, usedFallback: true };
 }
 
 function extractJsonLd(html: string): SchemaRecipe | null {
@@ -101,6 +112,13 @@ function extractJsonLd(html: string): SchemaRecipe | null {
 // Decode the handful of HTML entities that show up in JSON-LD string values on real recipe
 // sites (WordPress recipe plugins often emit raw entities inside JSON string literals, which
 // JSON.parse leaves untouched since they're not JSON escapes).
+//
+// `&amp;` MUST be decoded last: it's the escaped form of `&` itself, so decoding it before the
+// other entities double-decodes anything that legitimately displays an entity as text — e.g.
+// `&amp;#39;` (meant to literally show "&#39;") would become `&#39;` then `'`, and `AT&amp;T`
+// would be fine either way but `Salt &amp;amp; Pepper` would wrongly collapse twice. Decoding
+// `&amp;` last means every other pass only ever sees the entities that were NOT themselves
+// escaped, and `&amp;` unescapes to a literal `&` with nothing left to reprocess.
 function decodeEntities(text: string): string {
   return text
     .replace(/&frac12;/g, '½')
@@ -109,7 +127,6 @@ function decodeEntities(text: string): string {
     .replace(/&frac14;/g, '¼')
     .replace(/&frac34;/g, '¾')
     .replace(/&frac18;/g, '⅛')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -117,7 +134,8 @@ function decodeEntities(text: string): string {
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)));
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&');
 }
 
 function parseInstructionText(raw: unknown): string {
@@ -189,15 +207,24 @@ function schemaToRecipe(schema: SchemaRecipe, url: string): ParsedRecipe {
     addDurations(parseDuration(schema.cookTime), parseDuration(schema.prepTime));
   const prepTime = parseDuration(schema.prepTime);
 
+  const { servings, usedFallback: servingsFallback } = parseServings(schema.recipeYield);
+
+  const warnings: string[] = [];
+  if (servingsFallback) warnings.push(SERVINGS_FALLBACK_WARNING);
+  if (totalTime === null) warnings.push('No total time detected.');
+  if (ingredients.length === 0) warnings.push('No ingredients detected.');
+  if (steps.length === 0) warnings.push('No steps detected.');
+
   return {
     title: schema.name ? decodeEntities(schema.name) : 'Untitled Recipe',
-    servings: parseServings(schema.recipeYield),
+    servings,
     totalTime,
     activeTime: prepTime,
     source: url,
     authorNotes: schema.description ? decodeEntities(schema.description).slice(0, 2000) : null,
     ingredients,
     steps,
+    warnings,
   };
 }
 
@@ -345,6 +372,7 @@ export function parseTextRecipe(text: string): ParsedRecipe {
       authorNotes: null,
       ingredients: [],
       steps: [],
+      warnings: [SERVINGS_FALLBACK_WARNING, 'No total time detected.', 'No ingredients detected.', 'No steps detected.'],
     };
   }
 
@@ -360,13 +388,14 @@ export function parseTextRecipe(text: string): ParsedRecipe {
   let ingredientStart = -1;
   let instructionStart = -1;
   let servings = 4;
+  let servingsFallback = true;
   let totalTime: number | null = null;
 
   for (let i = 1; i < lines.length; i++) {
     if (ingredientHeaderRe.test(lines[i])) { ingredientStart = i + 1; continue; }
     if (instructionHeaderRe.test(lines[i])) { instructionStart = i + 1; continue; }
     const sm = lines[i].match(servingsRe);
-    if (sm) servings = parseInt(sm[1], 10);
+    if (sm) { servings = parseInt(sm[1], 10); servingsFallback = false; }
     const tm = lines[i].match(timeRe);
     if (tm) totalTime = parseTimeFromText(tm[1]) ?? totalTime;
   }
@@ -396,6 +425,20 @@ export function parseTextRecipe(text: string): ParsedRecipe {
     }
   }
 
+  const ingredients = ingredientLines.map((l, i) => parseIngredientLine(l, i));
+  const steps = stepLines.map((l, i) => ({
+    orderIndex: i,
+    instruction: l.replace(/^\d+\.\s*/, '').trim(),
+    timeMinutes: null,
+    isActiveTime: true,
+  })).filter((s) => s.instruction.length > 0);
+
+  const warnings: string[] = [];
+  if (servingsFallback) warnings.push(SERVINGS_FALLBACK_WARNING);
+  if (totalTime === null) warnings.push('No total time detected.');
+  if (ingredients.length === 0) warnings.push('No ingredients detected.');
+  if (steps.length === 0) warnings.push('No steps detected.');
+
   return {
     title,
     servings,
@@ -403,13 +446,9 @@ export function parseTextRecipe(text: string): ParsedRecipe {
     activeTime: null,
     source: null,
     authorNotes: null,
-    ingredients: ingredientLines.map((l, i) => parseIngredientLine(l, i)),
-    steps: stepLines.map((l, i) => ({
-      orderIndex: i,
-      instruction: l.replace(/^\d+\.\s*/, '').trim(),
-      timeMinutes: null,
-      isActiveTime: true,
-    })).filter((s) => s.instruction.length > 0),
+    ingredients,
+    steps,
+    warnings,
   };
 }
 

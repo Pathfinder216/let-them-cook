@@ -37,6 +37,10 @@ describe('importFromUrl fixture corpus', () => {
     expect(result.ingredients[0].name).toBe('chicken thighs');
     expect(result.steps).toHaveLength(3);
     expect(result.steps[0].instruction).toBe('Season the chicken with salt.');
+    // Regression guard: this recipe's yield is a genuinely-parsed "4", not the no-match
+    // fallback — 4 is an extremely common real-world serving count, so the parser must not
+    // warn about it just because the number happens to equal the fallback default.
+    expect(result.warnings).toEqual([]);
   });
 
   it('imports a Recipe nested inside an @graph array', async () => {
@@ -110,6 +114,23 @@ describe('importFromUrl fixture corpus', () => {
     const result = await importFixture('plain-recipe.html', 'https://example.com/chicken');
     expect(result.source).toBe('https://example.com/chicken');
   });
+
+  it('decodes &amp; last so already-escaped entities are not double-decoded', async () => {
+    const result = await importFixture('entity-recipe.html');
+    expect(result.title).toBe('AT&T Park Nachos');
+    // "&amp;#39;" must decode to the literal text "&#39;", NOT to an apostrophe — decoding
+    // &amp; before the numeric-entity pass would wrongly turn it into "'".
+    expect(result.authorNotes).toBe(
+      'Serve with a literal &#39; apostrophe glyph name and salt & pepper.',
+    );
+  });
+
+  it('reports missing-field warnings for a recipe the parser could not fully read', async () => {
+    const result = await importFixture('no-jsonld-blog.html');
+    // Everything was found in this fixture (title, servings, ingredients, steps) — no time
+    // field exists in the source, so only that one warning should fire.
+    expect(result.warnings).toEqual(['No total time detected.']);
+  });
 });
 
 describe('.txt file import', () => {
@@ -123,5 +144,17 @@ describe('.txt file import', () => {
     expect(result.ingredients[2].amount).toBe(1);
     expect(result.ingredients[2].unit).toBe('tbsp');
     expect(result.steps).toHaveLength(2);
+    // No time field in this fixture — everything else was found.
+    expect(result.warnings).toEqual(['No total time detected.']);
+  });
+
+  it('reports every fallback warning for empty input', () => {
+    const result = parseTextRecipe('');
+    expect(result.warnings).toEqual([
+      'No servings detected — defaulting to 4.',
+      'No total time detected.',
+      'No ingredients detected.',
+      'No steps detected.',
+    ]);
   });
 });

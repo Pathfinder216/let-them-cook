@@ -25,6 +25,7 @@ function baseParsedRecipe(overrides: Partial<ParsedRecipe> = {}): ParsedRecipe {
     steps: [
       { orderIndex: 0, instruction: 'Brown the beef.', timeMinutes: null, isActiveTime: true },
     ],
+    warnings: [],
     ...overrides,
   };
 }
@@ -48,9 +49,17 @@ describe('ImportPage', () => {
     });
   });
 
-  it('flags fields the parser did not find in the preview', async () => {
+  it('renders the backend-supplied warnings for fields the parser did not find', async () => {
     mockedImportFromUrl.mockResolvedValueOnce(
-      baseParsedRecipe({ servings: 4, totalTime: null, steps: [] }),
+      baseParsedRecipe({
+        totalTime: null,
+        steps: [],
+        warnings: [
+          'No servings detected — defaulting to 4.',
+          'No total time detected.',
+          'No steps detected.',
+        ],
+      }),
     );
     renderWithProviders(<ImportPage />);
 
@@ -64,8 +73,24 @@ describe('ImportPage', () => {
     expect(screen.getByText(/no steps detected/i)).toBeInTheDocument();
   });
 
+  it('does not show a servings warning for a genuinely-parsed 4-serving recipe', async () => {
+    // Regression guard: 4 is a common real-world yield. The banner must come from the
+    // backend's `warnings` field (which knows whether 4 was parsed or defaulted), never from
+    // the frontend re-deriving "servings === 4 means fallback".
+    mockedImportFromUrl.mockResolvedValueOnce(baseParsedRecipe({ servings: 4, warnings: [] }));
+    renderWithProviders(<ImportPage />);
+
+    await userEvent.type(screen.getByLabelText(/recipe url/i), 'https://example.com/recipe');
+    await userEvent.click(screen.getByRole('button', { name: /^import$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Imported Chili')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/no servings detected/i)).not.toBeInTheDocument();
+  });
+
   it('does not show warnings when the parser found everything', async () => {
-    mockedImportFromUrl.mockResolvedValueOnce(baseParsedRecipe({ servings: 6 }));
+    mockedImportFromUrl.mockResolvedValueOnce(baseParsedRecipe({ servings: 6, warnings: [] }));
     renderWithProviders(<ImportPage />);
 
     await userEvent.type(screen.getByLabelText(/recipe url/i), 'https://example.com/recipe');
