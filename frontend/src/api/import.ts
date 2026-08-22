@@ -1,4 +1,4 @@
-import { apiPost } from './client';
+import { apiPost, apiUpload } from './client';
 import type { CreateRecipeInput } from '../types/recipe';
 
 export type ParsedRecipe = Omit<CreateRecipeInput, 'ingredients' | 'steps'> & {
@@ -29,26 +29,5 @@ export async function importFromUrl(url: string): Promise<ParsedRecipe> {
 }
 
 export async function importFromFile(file: File): Promise<ParsedRecipe> {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  // This is a raw fetch (multipart), so it needs credentials + the CSRF token explicitly.
-  const csrfMatch = document.cookie.match(/(?:^|; )kc_csrf=([^;]*)/);
-  const headers: Record<string, string> = {};
-  if (csrfMatch) headers['x-csrf-token'] = decodeURIComponent(csrfMatch[1]);
-
-  const response = await fetch('/api/import/file', {
-    method: 'POST',
-    credentials: 'include',
-    headers,
-    body: formData,
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || `Import failed with status ${response.status}`);
-  }
-
-  return response.json();
+  return apiUpload<ParsedRecipe>('/import/file', file);
 }

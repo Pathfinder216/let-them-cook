@@ -329,7 +329,10 @@ describe('CookModePage media visibility', () => {
 
     // Wait until the step-media query has fired so the assertion isn't vacuous
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/steps/s1/media', expect.anything()),
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/steps/s1/media'),
+        expect.anything(),
+      ),
     );
     expect(container.querySelector('img, video')).toBeNull();
     // Header shows the "show media" affordance while hidden

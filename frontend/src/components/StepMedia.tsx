@@ -1,50 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiError } from '../api/client';
+import { fetchStepMedia, uploadStepMedia, deleteStepMedia } from '../api/media';
 import { useMediaVisibility } from '../hooks/useMediaVisibility';
-
-interface MediaItem {
-  id: string;
-  type: 'image' | 'video';
-  path: string;
-}
-
-/** CSRF header for mutating raw fetches (these don't go through the apiClient helpers). */
-function csrfHeaders(): Record<string, string> {
-  const match = document.cookie.match(/(?:^|; )kc_csrf=([^;]*)/);
-  return match ? { 'x-csrf-token': decodeURIComponent(match[1]) } : {};
-}
-
-async function fetchStepMedia(stepId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/steps/${stepId}/media`, { credentials: 'include' });
-  if (!res.ok) throw new ApiError(res.status, 'Failed to load media');
-  return res.json(); // null or MediaItem
-}
-
-async function uploadStepMedia(stepId: string, file: File): Promise<MediaItem> {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`/api/steps/${stepId}/media`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: csrfHeaders(),
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.error || 'Upload failed');
-  }
-  return res.json();
-}
-
-async function deleteStepMedia(stepId: string, mediaId: string): Promise<void> {
-  const res = await fetch(`/api/steps/${stepId}/media/${mediaId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: csrfHeaders(),
-  });
-  if (!res.ok) throw new ApiError(res.status, 'Delete failed');
-}
 
 interface StepMediaProps {
   stepId: string;

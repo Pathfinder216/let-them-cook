@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -8,19 +9,8 @@ import type { CreateRecipeInput } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
 import { assignCourses, assignLabels } from '../api/labels';
 import { apiGet } from '../api/client';
+import { uploadRecipeCover, uploadStepMedia } from '../api/media';
 import type { DietaryInfo } from '../types/meal-plan';
-
-async function uploadCoverPhoto(recipeId: string, file: File): Promise<void> {
-  const form = new FormData();
-  form.append('file', file);
-  await fetch(`/api/recipes/${recipeId}/media`, { method: 'POST', body: form });
-}
-
-async function uploadStepMedia(stepId: string, file: File): Promise<void> {
-  const form = new FormData();
-  form.append('file', file);
-  await fetch(`/api/steps/${stepId}/media`, { method: 'POST', body: form });
-}
 
 export function RecipeFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +31,8 @@ export function RecipeFormPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const [saveError, setSaveError] = useState<{ recipeId: string; message: string } | null>(null);
+
   async function handleSubmit(data: CreateRecipeInput, media: PendingMedia, courseTypes: string[], labelIds: string[]) {
     if (isEditing && id) {
       updateMutation.mutate(
@@ -51,33 +43,42 @@ export function RecipeFormPage() {
               const step = updated.steps.find(s => s.orderIndex === orderIndex);
               return step ? [uploadStepMedia(step.id, file)] : [];
             });
-            await Promise.all([
-              ...uploads,
-              assignCourses(updated.id, courseTypes),
-              assignLabels(updated.id, labelIds),
-            ]);
-            navigate(`/recipes/${updated.id}`);
+            await finishSave(updated.id, uploads, courseTypes, labelIds);
           },
         },
       );
     } else {
       createMutation.mutate(data, {
         onSuccess: async (created) => {
-          const uploads: Promise<void>[] = [];
-          if (media.coverPhoto) uploads.push(uploadCoverPhoto(created.id, media.coverPhoto));
+          const uploads: Promise<unknown>[] = [];
+          if (media.coverPhoto) uploads.push(uploadRecipeCover(created.id, media.coverPhoto));
           for (const { orderIndex, file } of media.stepMedia) {
             const step = created.steps.find(s => s.orderIndex === orderIndex);
             if (step) uploads.push(uploadStepMedia(step.id, file));
           }
-          await Promise.all([
-            ...uploads,
-            assignCourses(created.id, courseTypes),
-            assignLabels(created.id, labelIds),
-          ]);
-          navigate(`/recipes/${created.id}`);
+          await finishSave(created.id, uploads, courseTypes, labelIds);
         },
       });
     }
+  }
+
+  /**
+   * Assign courses/labels and await the pending media uploads, then go to the recipe.
+   * Upload failures are surfaced rather than swallowed — a silently dropped upload used to
+   * leave the recipe looking saved with none of its photos attached.
+   */
+  async function finishSave(recipeId: string, uploads: Promise<unknown>[], courseTypes: string[], labelIds: string[]) {
+    try {
+      await Promise.all([
+        ...uploads,
+        assignCourses(recipeId, courseTypes),
+        assignLabels(recipeId, labelIds),
+      ]);
+    } catch (err) {
+      setSaveError({ recipeId, message: err instanceof Error ? err.message : 'Some photos or videos could not be uploaded.' });
+      return;
+    }
+    navigate(`/recipes/${recipeId}`);
   }
 
   if (isEditing && isLoading) {
@@ -111,6 +112,14 @@ export function RecipeFormPage() {
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-6 text-sm text-red-700">
+          The recipe was saved, but something went wrong finishing up: {saveError.message}{' '}
+          <Link to={`/recipes/${saveError.recipeId}`} className="underline font-medium">View the recipe</Link>{' '}
+          and re-add anything missing.
         </div>
       )}
 
