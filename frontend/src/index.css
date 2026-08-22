@@ -23,6 +23,15 @@ input[type=number] {
 }
 
 @media print {
+  /* The screen layout clips horizontal overflow on html/body. Browsers carry that
+     clip into paged media and drop everything after the first page — which silently
+     swallowed the notes at the end of the print layout. Undo it when printing. */
+  html,
+  body {
+    overflow: visible !important;
+    max-width: none !important;
+    height: auto !important;
+  }
   header,
   nav,
   .no-print {
