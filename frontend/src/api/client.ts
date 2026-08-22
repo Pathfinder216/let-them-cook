@@ -87,3 +87,20 @@ export async function apiDelete<T>(path: string): Promise<T> {
   });
   return handleResponse<T>(response);
 }
+
+/**
+ * Multipart file upload (POST). Uses the same session + CSRF handling as the JSON helpers —
+ * media uploads are state-changing requests and are rejected with 403 without the token.
+ * Content-Type is deliberately left unset so the browser adds the multipart boundary.
+ */
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: mutationHeaders(false),
+    body: form,
+  });
+  return handleResponse<T>(response);
+}

@@ -1,52 +1,11 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiError } from '../api/client';
+import {
+  fetchRecipeCover,
+  uploadRecipeCover,
+  deleteRecipeMedia,
+} from '../api/media';
 import { useMediaVisibility } from '../hooks/useMediaVisibility';
-
-interface MediaItem {
-  id: string;
-  type: string;
-  path: string;
-  orderIndex: number | null;
-}
-
-/** CSRF header for mutating raw fetches (these don't go through the apiClient helpers). */
-function csrfHeaders(): Record<string, string> {
-  const match = document.cookie.match(/(?:^|; )kc_csrf=([^;]*)/);
-  return match ? { 'x-csrf-token': decodeURIComponent(match[1]) } : {};
-}
-
-async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/recipes/${recipeId}/media`, { credentials: 'include' });
-  if (!res.ok) throw new ApiError(res.status, 'Failed to load media');
-  const items: MediaItem[] = await res.json();
-  return items.find((m) => m.type === 'image') ?? null;
-}
-
-async function uploadCoverPhoto(recipeId: string, file: File): Promise<MediaItem> {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`/api/recipes/${recipeId}/media`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: csrfHeaders(),
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.error || 'Upload failed');
-  }
-  return res.json();
-}
-
-async function deleteCoverPhoto(recipeId: string, mediaId: string): Promise<void> {
-  const res = await fetch(`/api/recipes/${recipeId}/media/${mediaId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: csrfHeaders(),
-  });
-  if (!res.ok) throw new ApiError(res.status, 'Delete failed');
-}
 
 interface RecipeMediaProps {
   recipeId: string;
@@ -62,13 +21,13 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
 
   const { data: cover = null } = useQuery({
     queryKey: ['cover-photo', recipeId],
-    queryFn: () => fetchCoverPhoto(recipeId),
+    queryFn: () => fetchRecipeCover(recipeId),
   });
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      if (cover) await deleteCoverPhoto(recipeId, cover.id);
-      return uploadCoverPhoto(recipeId, file);
+      if (cover) await deleteRecipeMedia(recipeId, cover.id);
+      return uploadRecipeCover(recipeId, file);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cover-photo', recipeId] });
@@ -81,7 +40,7 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (mediaId: string) => deleteCoverPhoto(recipeId, mediaId),
+    mutationFn: (mediaId: string) => deleteRecipeMedia(recipeId, mediaId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cover-photo', recipeId] }),
   });
 
