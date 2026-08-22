@@ -1,4 +1,5 @@
 import { safeFetch } from '../utils/safeFetch.js';
+import { normalizeUnit } from '../constants/units.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -235,7 +236,9 @@ export function parseIngredientLine(line: string, index: number): ParsedIngredie
   const unitRe = new RegExp(`^(${[...UNITS].join('|')})s?\\b\\.?\\s*`, 'i');
   const unitMatch = remaining.match(unitRe);
   if (unitMatch) {
-    unit = unitMatch[1].toLowerCase();
+    // Normalize to canonical form here too — the parser's output feeds the import preview and
+    // may reach the DB before hitting the recipe schema, so canonicalize at the source.
+    unit = normalizeUnit(unitMatch[1]);
     remaining = remaining.slice(unitMatch[0].length);
   }
 

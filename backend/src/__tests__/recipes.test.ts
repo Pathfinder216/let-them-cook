@@ -67,6 +67,33 @@ describe('POST /api/recipes', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('normalizes ingredient units to canonical forms at write time', async () => {
+    const res = await api.post('/api/recipes').send({
+      title: 'Unit Test',
+      ingredients: [
+        { name: 'flour', amount: 2, unit: 'Cups', orderIndex: 0 },
+        { name: 'butter', amount: 3, unit: 'Tablespoons', orderIndex: 1 },
+        { name: 'salt', amount: 1, unit: 'T', orderIndex: 2 },
+        { name: 'pepper', amount: 1, unit: 't', orderIndex: 3 },
+        { name: 'sugar', amount: 200, unit: 'grams', orderIndex: 4 },
+        { name: 'garnish', amount: 1, unit: 'handful', orderIndex: 5 },
+      ],
+    });
+
+    expect(res.status).toBe(201);
+    const units = Object.fromEntries(
+      res.body.ingredients.map((i: { name: string; unit: string | null }) => [i.name, i.unit]),
+    );
+    expect(units).toEqual({
+      flour: 'cup',
+      butter: 'tbsp',
+      salt: 'tbsp', // case-sensitive T
+      pepper: 'tsp', // case-sensitive t
+      sugar: 'g',
+      garnish: 'handful', // pass-through
+    });
+  });
 });
 
 describe('GET /api/recipes', () => {

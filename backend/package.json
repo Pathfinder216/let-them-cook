@@ -18,7 +18,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:backup": "tsx scripts/backup.ts",
     "db:restore": "tsx scripts/restore.ts",
-    "db:backfill": "tsx scripts/backfill-catalog-ids.ts"
+    "db:backfill": "tsx scripts/backfill-catalog-ids.ts",
+    "db:normalize-units": "tsx scripts/normalize-units.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

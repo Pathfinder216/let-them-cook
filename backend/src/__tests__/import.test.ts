@@ -61,6 +61,14 @@ describe('parseIngredientLine', () => {
     expect(result.orderIndex).toBe(5);
   });
 
+  it('normalizes the parsed unit to canonical form', () => {
+    // Long, capitalized, plural form should be stored as the canonical abbreviation.
+    const result = parseIngredientLine('2 Tablespoons olive oil', 0);
+    expect(result.amount).toBe(2);
+    expect(result.unit).toBe('tbsp');
+    expect(result.name).toBe('olive oil');
+  });
+
 });
 
 describe('parseTextRecipe', () => {

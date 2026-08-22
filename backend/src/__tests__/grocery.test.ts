@@ -68,6 +68,28 @@ describe('consolidateIngredients', () => {
     expect(result).toHaveLength(2);
   });
 
+  it('consolidates unit spelling variants onto one line', () => {
+    const result = consolidateIngredients([
+      {
+        ingredients: [{ name: 'butter', amount: 2, unit: 'tbsp' }],
+        servingsMultiplier: 1,
+      },
+      {
+        ingredients: [{ name: 'butter', amount: 1, unit: 'tablespoon' }],
+        servingsMultiplier: 1,
+      },
+      {
+        ingredients: [{ name: 'butter', amount: 1, unit: 'T' }],
+        servingsMultiplier: 1,
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].ingredient).toBe('butter');
+    expect(result[0].amount).toBe(4);
+    expect(result[0].unit).toBe('tbsp');
+  });
+
   it('handles case-insensitive ingredient names', () => {
     const result = consolidateIngredients([
       {

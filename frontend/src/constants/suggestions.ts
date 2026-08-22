@@ -66,13 +66,16 @@ export const INGREDIENT_SUGGESTIONS = [
   'water', 'white wine',
 ].sort();
 
+// Canonical units first (these match backend normalization in constants/units.ts), then a few
+// common free-text descriptors that have no canonical abbreviation. Free text is always allowed.
 export const UNIT_SUGGESTIONS = [
-  // Volume
-  'tsp', 'tbsp', 'cup', 'fl oz', 'ml', 'l', 'pint', 'quart', 'gallon',
-  // Weight
+  // Volume (canonical)
+  'tsp', 'tbsp', 'cup', 'fl oz', 'pt', 'qt', 'gal', 'ml', 'l',
+  // Weight (canonical)
   'g', 'kg', 'oz', 'lb',
-  // Count / descriptive
-  'bag', 'bunch', 'can', 'clove', 'dash', 'drop', 'handful', 'head',
-  'inch', 'jar', 'large', 'loaf', 'medium', 'package', 'piece', 'pinch',
-  'sheet', 'slice', 'small', 'sprig', 'stalk', 'whole',
+  // Count / descriptive (canonical)
+  'pinch', 'dash', 'clove', 'can', 'slice', 'stick', 'bunch', 'sprig', 'head', 'piece',
+  // Non-canonical free-text descriptors (pass-through)
+  'bag', 'drop', 'handful', 'inch', 'jar', 'large', 'loaf', 'medium',
+  'package', 'sheet', 'small', 'stalk', 'whole',
 ];
