@@ -3,6 +3,7 @@ import { validate } from '../middleware/validate.js';
 import { createRecipeSchema, updateRecipeSchema, recipeQuerySchema } from '../schemas/recipe.schema.js';
 import * as recipeService from '../services/recipe.service.js';
 import * as substitutionService from '../services/substitutions.service.js';
+import * as shareService from '../services/share.service.js';
 import { computeDietaryInfo } from '../services/dietary.service.js';
 
 const router = Router();
@@ -96,6 +97,33 @@ router.get(
   asyncHandler(async (req, res) => {
     const versions = await recipeService.getRecipeVersions(req.userId!, req.params.id as string);
     res.json(versions);
+  }),
+);
+
+// GET /api/recipes/:id/share - Current share state (null when there is no active share)
+router.get(
+  '/:id/share',
+  asyncHandler(async (req, res) => {
+    const share = await shareService.getShare(req.userId!, req.params.id as string);
+    res.json(share);
+  }),
+);
+
+// POST /api/recipes/:id/share - Create (or return the existing unrevoked) share link
+router.post(
+  '/:id/share',
+  asyncHandler(async (req, res) => {
+    const share = await shareService.createShare(req.userId!, req.params.id as string);
+    res.status(201).json(share);
+  }),
+);
+
+// DELETE /api/recipes/:id/share - Revoke the recipe's active share link
+router.delete(
+  '/:id/share',
+  asyncHandler(async (req, res) => {
+    await shareService.revokeShare(req.userId!, req.params.id as string);
+    res.status(204).send();
   }),
 );
 

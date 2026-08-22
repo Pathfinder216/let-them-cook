@@ -22,6 +22,7 @@ model User {
   aliases       IngredientAlias[]
   labels        Label[]
   localizations LocalizationMapping[]
+  recipeShares  RecipeShare[]
 }
 
 model Session {
@@ -247,4 +248,16 @@ model UserPreferences {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   locale String @default("en-US")
   theme  String @default("light")
+}
+
+model RecipeShare {
+  id        String    @id @default(uuid()) // doubles as the URL token (uuid = unguessable)
+  recipeId  String // any version row; resolved to the chain's latest at read time
+  userId    String // owner; cascade delete with user
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([recipeId])
+  @@index([userId])
 }

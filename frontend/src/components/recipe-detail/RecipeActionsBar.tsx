@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useArchiveRecipe, useDeleteRecipePermanently } from '../../hooks/useRecipes';
 import {
   exportRecipeAsText,
@@ -8,6 +9,7 @@ import {
   shareRecipe,
   emailRecipe,
 } from '../../utils/exportRecipe';
+import { fetchShare, createShare, revokeShare } from '../../api/shares';
 import { Modal } from '../ui/Modal';
 import { MediaVisibilityToggle } from '../MediaVisibilityToggle';
 import type { Recipe, Ingredient } from '../../types/recipe';
@@ -112,10 +114,77 @@ interface ExportActionsProps {
 const EXPORT_BTN =
   'text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors';
 
+/** Copy public link / Revoke link — creates a token-gated share on demand and copies its URL. */
+function ShareLinkActions({ recipeId }: { recipeId: string }) {
+  const queryClient = useQueryClient();
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  const { data: share } = useQuery({
+    queryKey: ['recipe-share', recipeId],
+    queryFn: () => fetchShare(recipeId),
+  });
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ['recipe-share', recipeId] });
+  }
+
+  const copyMutation = useMutation({
+    // Reuse the existing token when there is one, otherwise mint a new share.
+    mutationFn: async () => share ?? (await createShare(recipeId)),
+    onSuccess: async (s) => {
+      const url = `${window.location.origin}/shared/${s.id}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setError('');
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Clipboard blocked (insecure context / permissions) — surface the URL to copy by hand.
+        setError(url);
+      }
+      invalidate();
+    },
+    onError: () => setError('Could not create share link'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: () => revokeShare(recipeId),
+    onSuccess: () => {
+      setCopied(false);
+      setError('');
+      invalidate();
+    },
+  });
+
+  return (
+    <>
+      <button
+        onClick={() => copyMutation.mutate()}
+        disabled={copyMutation.isPending}
+        className={EXPORT_BTN}
+      >
+        {copied ? 'Link copied!' : copyMutation.isPending ? 'Creating…' : 'Copy link'}
+      </button>
+      {share && (
+        <button
+          onClick={() => revokeMutation.mutate()}
+          disabled={revokeMutation.isPending}
+          className={EXPORT_BTN}
+        >
+          {revokeMutation.isPending ? 'Revoking…' : 'Revoke link'}
+        </button>
+      )}
+      {error && <span className="text-xs text-gray-500 break-all">{error}</span>}
+    </>
+  );
+}
+
 /** Share, email, PDF and export (.txt / JSON) buttons shown in the footer. */
 export function ExportActions({ recipe, finalIngredients, swapDisplayNames, targetServings }: ExportActionsProps) {
   return (
     <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+      <ShareLinkActions recipeId={recipe.id} />
       {canShareRecipe() && (
         <button
           onClick={() => shareRecipe(recipe, finalIngredients, swapDisplayNames, targetServings)}

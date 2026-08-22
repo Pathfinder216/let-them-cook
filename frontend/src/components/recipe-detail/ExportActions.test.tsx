@@ -1,7 +1,15 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi } from 'vitest';
+import { renderWithProviders } from '../../test/utils';
 import { ExportActions } from './RecipeActionsBar';
 import type { Recipe, Ingredient } from '../../types/recipe';
+
+// Share-link buttons hit the shares API — keep them off the network. Default: no active share.
+vi.mock('../../api/shares', () => ({
+  fetchShare: vi.fn().mockResolvedValue(null),
+  createShare: vi.fn(),
+  revokeShare: vi.fn(),
+}));
 
 const ingredients: Ingredient[] = [
   { id: 'i1', recipeId: 'r1', name: 'flour', originalName: null, amount: 2, unit: 'cups', isOptional: false, note: null, orderIndex: 0 },
@@ -29,7 +37,7 @@ const recipe: Recipe = {
 };
 
 function renderBar() {
-  return render(
+  return renderWithProviders(
     <ExportActions
       recipe={recipe}
       finalIngredients={ingredients}
@@ -96,6 +104,45 @@ describe('ExportActions share wiring', () => {
     await Promise.resolve();
     expect(unhandled).not.toHaveBeenCalled();
     window.removeEventListener('unhandledrejection', unhandled);
+  });
+
+  it('creates a share on demand and copies the public URL to the clipboard', async () => {
+    const { createShare } = await import('../../api/shares');
+    (createShare as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'tok-123',
+      recipeId: 'r1',
+      userId: 'u1',
+      createdAt: '',
+      revokedAt: null,
+    });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    renderBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+
+    await waitFor(() => expect(createShare).toHaveBeenCalledWith('r1'));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/shared/tok-123`),
+    );
+    expect(await screen.findByRole('button', { name: 'Link copied!' })).toBeInTheDocument();
+  });
+
+  it('shows a Revoke link button and calls revokeShare when a share is already active', async () => {
+    const { fetchShare, revokeShare } = await import('../../api/shares');
+    (fetchShare as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'tok-abc',
+      recipeId: 'r1',
+      userId: 'u1',
+      createdAt: '',
+      revokedAt: null,
+    });
+    (revokeShare as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    renderBar();
+    const revokeBtn = await screen.findByRole('button', { name: 'Revoke link' });
+    fireEvent.click(revokeBtn);
+    await waitFor(() => expect(revokeShare).toHaveBeenCalledWith('r1'));
   });
 
   it('logs instead of rejecting when the share itself fails', async () => {

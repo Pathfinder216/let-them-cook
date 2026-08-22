@@ -18,6 +18,7 @@ import substitutionsRouter from './routes/substitutions.js';
 import mediaRouter from './routes/media.js';
 import ingredientsRouter from './routes/ingredients.js';
 import metaRouter from './routes/meta.js';
+import sharedRouter from './routes/shared.js';
 import fs from 'fs';
 
 export function createApp() {
@@ -77,6 +78,11 @@ export function createApp() {
   // Auth routes are public (register/login) and handle their own CSRF issuance, so they are
   // mounted before the CSRF + requireAuth gates.
   app.use('/api/auth', authRouter);
+
+  // Public token-gated recipe sharing (read-only). Like /api/auth, mounted before the CSRF +
+  // requireAuth gates: the unguessable share token is the only credential, and its media route
+  // enforces its own ownership so it doesn't need — and must not sit behind — a session.
+  app.use('/api/shared', sharedRouter);
 
   // All other /api routes require CSRF validation (state-changing methods) and a live session.
   // Scoped to /api so the public auth routes, media, and the production SPA shell are unaffected.

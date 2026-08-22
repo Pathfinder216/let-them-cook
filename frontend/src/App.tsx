@@ -17,6 +17,7 @@ import { ImportPage } from './pages/ImportPage';
 import { RecipeVersionHistoryPage } from './pages/RecipeVersionHistoryPage';
 import { SubstitutionsPage } from './pages/SubstitutionsPage';
 import { IngredientsPage } from './pages/IngredientsPage';
+import { SharedRecipePage } from './pages/SharedRecipePage';
 
 export default function App() {
   return (
@@ -26,6 +27,9 @@ export default function App() {
           {/* Public auth routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+
+          {/* Public token-gated shared recipe view (no session required) */}
+          <Route path="/shared/:token" element={<SharedRecipePage />} />
 
           {/* Everything else requires a session */}
           <Route element={<ProtectedRoute />}>
